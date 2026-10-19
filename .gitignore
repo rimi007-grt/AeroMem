@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+.env
+private_keys.json
+*.sqlite3-journal
+*.sqlite3-wal
+*.sqlite3-shm
+.vscode/
+.idea/
+
