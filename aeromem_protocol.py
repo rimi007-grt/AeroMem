@@ -40,22 +40,24 @@ class AeroMemVectorStore:
     in-memory TF-IDF semantic vector space for resilient zero-dependency execution.
     """
 
-    def __init__(self, db_path: str = "./aeromem_chroma_db", collection_name: str = "aeromem_episodes"):
-        self.db_path = db_path
+    def __init__(self, db_path: Optional[str] = None, collection_name: str = "aeromem_episodes"):
+        # Default to user home directory to avoid Windows OneDrive sync lock interference
+        default_dir = os.path.join(os.path.expanduser("~"), ".aeromem_chroma_db")
+        self.db_path = db_path or os.getenv("AEROMEM_CHROMA_DIR", default_dir)
         self.collection_name = collection_name
         self.use_chroma = False
         self.chroma_client = None
         self.collection = None
         self.memory_registry: Dict[str, MemoryItem] = {}
 
-        # Fallback Vector Space components
+        # Fallback Vector Space components (TF-IDF + Cosine Similarity)
         self._fallback_docs: List[str] = []
         self._fallback_ids: List[str] = []
 
         self._init_chroma()
 
     def _init_chroma(self) -> None:
-        """Attempts to initialize ChromaDB PersistentClient."""
+        """Attempts to initialize ChromaDB PersistentClient with self-healing check."""
         try:
             import chromadb
             from chromadb.config import Settings
@@ -69,8 +71,10 @@ class AeroMemVectorStore:
                 name=self.collection_name,
                 metadata={"description": "AeroMem Cross-Agent Episodic Vector Index"},
             )
+            # Perform quick sanity count to guarantee index integrity
+            _ = self.collection.count()
             self.use_chroma = True
-            logger.info("AeroMem Vector Store initialized with ChromaDB [PERSISTENT]")
+            logger.info(f"AeroMem Vector Store initialized with ChromaDB [PERSISTENT at {self.db_path}]")
         except Exception as exc:
             logger.warning(
                 f"ChromaDB initialization deferred: {exc}. "
@@ -98,11 +102,11 @@ class AeroMemVectorStore:
                     documents=[doc_text],
                     metadatas=[meta],
                 )
-                return
             except Exception as exc:
                 logger.warning(f"ChromaDB upsert failed, indexing in fallback vector space: {exc}")
+                self.use_chroma = False
 
-        # Fallback in-memory index
+        # Always synchronize with fallback in-memory index for zero-latency failover
         if item.memory_id not in self._fallback_ids:
             self._fallback_ids.append(item.memory_id)
             self._fallback_docs.append(doc_text)
@@ -168,6 +172,7 @@ class AeroMemVectorStore:
                     return matched_items
             except Exception as exc:
                 logger.warning(f"ChromaDB query encountered issue: {exc}. Using fallback engine.")
+                self.use_chroma = False
 
         # 2. Resilient Fallback: TF-IDF + Cosine Similarity Vector Space
         return self._fallback_query(query_text, top_k, memory_type, session_id, task_name, min_similarity)

@@ -9,4 +9,6 @@ private_keys.json
 *.sqlite3-shm
 .vscode/
 .idea/
+aeromem_chroma_db/
+*_data.json
 

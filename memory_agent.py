@@ -10,6 +10,8 @@ attach to an Agentverse Mailbox for global decentralized agent discovery.
 import os
 from uagents import Agent, Context
 from aeromem_protocol import aeromem_proto, vector_engine
+from aeromem_chat_protocol import chat_proto
+from aeromem_payment_protocol import payment_proto
 
 # ---------------------------------------------------------------------------
 # Server / Host Agent Configuration
@@ -38,8 +40,15 @@ memory_agent = Agent(
     mailbox=mailbox_config,
 )
 
-# Attach the AeroMem Episodic Protocol
+# Attach protocols:
+# 1. Native AeroMem Episodic Protocol (Peer-to-Peer Agent Swarms)
 memory_agent.include(aeromem_proto)
+
+# 2. Standard Agent Chat Protocol / ACP 0.3.0 (ASI:One & Agentverse Discovery)
+memory_agent.include(chat_proto, publish_manifest=True)
+
+# 3. Agent Payment Protocol (Monetization & Credit Purchasing)
+memory_agent.include(payment_proto, publish_manifest=True)
 
 
 # ---------------------------------------------------------------------------
@@ -70,6 +79,8 @@ async def startup_diagnostics(ctx: Context) -> None:
     ctx.logger.info(f"[BOOT] Deterministic Seed Configured: '{AEROMEM_SERVER_SEED[:20]}...'")
     ctx.logger.info(f"[BOOT] ChromaDB Persistent Storage: {'ENABLED' if vector_engine.use_chroma else 'FALLBACK_TFIDF'}")
     ctx.logger.info(f"[BOOT] Native ctx.storage Sync: READY (Resilient flat KV fallback)")
+    ctx.logger.info(f"[BOOT] Agent Chat Protocol (ACP 0.3.0): ENABLED (ASI:One & Agentverse Ready)")
+    ctx.logger.info(f"[BOOT] Agent Payment Protocol: ENABLED (Memory-as-a-Service Monetization)")
 
     if AGENT_MAILBOX_KEY:
         ctx.logger.info(f"[BOOT] Network Mode: AGENTVERSE_MAILBOX (Key: {AGENT_MAILBOX_KEY[:8]}...)")
